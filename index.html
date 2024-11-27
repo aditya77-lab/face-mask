@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Mask Detector</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .video-container {
+            position: relative;
+            max-width: 600px;
+            margin: 0 auto;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #videoElement, #outputCanvas {
+            width: 100%;
+            max-width: 600px;
+            border-radius: 10px;
+        }
+
+        #outputCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .status {
+            margin-top: 15px;
+            color: #666;
+        }
+
+        .detection-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        .control-buttons {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-start {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .btn-stop {
+            background-color: #dc3545;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Face Mask Detection Simulator</h1>
+        <div class="video-container">
+            <video id="videoElement" autoplay playsinline></video>
+            <canvas id="outputCanvas"></canvas>
+        </div>
+        <div class="status">
+            <p id="statusText">Loading webcam...</p>
+        </div>
+        <div class="detection-stats">
+            <div class="stat-box">
+                <strong>Mask Detected:</strong>
+                <span id="maskCount">0</span>
+            </div>
+            <div class="stat-box">
+                <strong>No Mask:</strong>
+                <span id="noMaskCount">0</span>
+            </div>
+        </div>
+        <div class="control-buttons">
+            <button id="startBtn" class="btn btn-start" disabled>Start Detection</button>
+            <button id="stopBtn" class="btn btn-stop" disabled>Stop Detection</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const videoElement = document.getElementById('videoElement');
+        const outputCanvas = document.getElementById('outputCanvas');
+        const statusText = document.getElementById('statusText');
+        const maskCountElement = document.getElementById('maskCount');
+        const noMaskCountElement = document.getElementById('noMaskCount');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const ctx = outputCanvas.getContext('2d');
+
+        // Detection variables
+        let detectionRunning = false;
+        let maskCount = 0;
+        let noMaskCount = 0;
+        let animationFrameId = null;
+
+        // Initialize webcam
+        async function initWebcam() {
+            try {
+                // Request webcam access
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                videoElement.srcObject = stream;
+                
+                videoElement.onloadedmetadata = () => {
+                    videoElement.play();
+                    outputCanvas.width = videoElement.videoWidth;
+                    outputCanvas.height = videoElement.videoHeight;
+                    
+                    statusText.textContent = 'Webcam ready. Click Start Detection.';
+                    startBtn.disabled = false;
+                };
+            } catch (error) {
+                statusText.textContent = `Error accessing webcam: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        // Simulate mask detection
+        function simulateMaskDetection() {
+            // Randomly determine mask status
+            const isMaskWorn = Math.random() > 0.5;
+            const confidence = (Math.random() * 50 + 50).toFixed(2); // 50-100%
+
+            if (isMaskWorn) {
+                maskCount++;
+                maskCountElement.textContent = maskCount;
+                return { label: "Mask", color: "green", confidence };
+            } else {
+                noMaskCount++;
+                noMaskCountElement.textContent = noMaskCount;
+                return { label: "No Mask", color: "red", confidence };
+            }
+        }
+
+        // Detect and draw mask status
+        function detectMasks() {
+            if (!detectionRunning) return;
+
+            // Clear previous frame
+            ctx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+            ctx.drawImage(videoElement, 0, 0, outputCanvas.width, outputCanvas.height);
+
+            // Simulate detection
+            const detection = simulateMaskDetection();
+
+            // Draw detection results
+            ctx.font = '16px Arial';
+            ctx.fillStyle = detection.color;
+            ctx.fillText(
+                `${detection.label}: ${detection.confidence}%`, 
+                10, 30
+            );
+
+            // Continue detection
+            animationFrameId = requestAnimationFrame(detectMasks);
+        }
+
+        // Start detection
+        function startDetection() {
+            if (!detectionRunning) {
+                detectionRunning = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                statusText.textContent = 'Detection running...';
+                detectMasks();
+            }
+        }
+
+        // Stop detection
+        function stopDetection() {
+            if (detectionRunning) {
+                detectionRunning = false;
+                cancelAnimationFrame(animationFrameId);
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                statusText.textContent = 'Detection stopped.';
+            }
+        }
+
+        // Initialize
+        initWebcam();
+
+        // Event listeners
+        startBtn.addEventListener('click', startDetection);
+        stopBtn.addEventListener('click', stopDetection);
+    </script>
+</body>
+</html>
